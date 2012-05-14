@@ -1,0 +1,145 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>Superbone.js by ezmilhouse</title>
+
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/pygment_trac.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+    <div class="wrapper">
+      <header>
+        <h1>Superbone.js</h1>
+        <p></p>
+        <p class="view"><a href="https://github.com/ezmilhouse/superbone.js">View the Project on GitHub <small>ezmilhouse/superbone.js</small></a></p>
+        <ul>
+          <li><a href="https://github.com/ezmilhouse/superbone.js/zipball/master">Download <strong>ZIP File</strong></a></li>
+          <li><a href="https://github.com/ezmilhouse/superbone.js/tarball/master">Download <strong>TAR Ball</strong></a></li>
+          <li><a href="https://github.com/ezmilhouse/superbone.js">View On <strong>GitHub</strong></a></li>
+        </ul>
+      </header>
+      <section>
+        <h1>Superbone.js</h1>
+
+<p>a convenient wrapper for Backbone.js</p>
+
+<h2>Motivation</h2>
+
+<p>Backbone did a great job by injecting the core MVC idea into our daily JS work, but the code of Backbone projects can easily become a terrifying mess.</p>
+
+<p>Superbone.js is a convenient wrapper library to make your Backbone life a lot
+ easier by introducing a dead-simple API to handle your models, collections, views and controllers.</p>
+
+<h2>Quickstart</h2>
+
+<p>Let's create a little 'Todo' app:</p>
+
+<ul>
+<li>create model &amp; collection</li>
+</ul><div class="highlight">
+<pre>
+
+    <span class="nx">superbone</span><span class="p">.</span><span class="nx">Model</span>
+        <span class="p">.</span><span class="nx">create</span><span class="p">(</span><span class="s1">'todoItem'</span><span class="p">)</span>
+        <span class="p">.</span><span class="nx">end</span><span class="p">();</span>
+
+    <span class="nx">superbone</span><span class="p">.</span><span class="nx">Collection</span>
+        <span class="p">.</span><span class="nx">create</span><span class="p">(</span><span class="s1">'todoList'</span><span class="p">)</span>
+        <span class="p">.</span><span class="nx">of</span><span class="p">(</span><span class="s1">'todoItem'</span><span class="p">)</span> <span class="c1">// bind model</span>
+        <span class="p">.</span><span class="nx">end</span><span class="p">();</span>
+
+</pre>
+</div>
+
+
+<ul>
+<li>create view</li>
+</ul><div class="highlight">
+<pre>
+
+    <span class="nx">superbone</span><span class="p">.</span><span class="nx">View</span>
+        <span class="p">.</span><span class="nx">create</span><span class="p">(</span><span class="s1">'todo'</span><span class="p">)</span>
+        <span class="p">.</span><span class="nx">of</span><span class="p">(</span><span class="s1">'todoList'</span><span class="p">)</span> <span class="c1">// bind collection</span>
+        <span class="p">.</span><span class="nx">on</span><span class="p">(</span><span class="s1">'click input'</span><span class="p">,</span> <span class="s1">'todo:isDone'</span><span class="p">)</span> <span class="c1">// bind controller</span>
+        <span class="p">.</span><span class="nx">end</span><span class="p">();</span>
+
+</pre>
+</div>
+
+
+<ul>
+<li>create controller</li>
+</ul><div class="highlight">
+<pre>
+
+    <span class="nx">superbone</span><span class="p">.</span><span class="nx">Controller</span>
+        <span class="p">.</span><span class="nx">create</span><span class="p">(</span><span class="s1">'todo'</span><span class="p">)</span>
+        <span class="p">.</span><span class="nx">is</span><span class="p">(</span><span class="s1">'isDone'</span><span class="p">,</span> <span class="kd">function</span><span class="p">(</span><span class="nx">err</span><span class="p">,</span> <span class="nx">evt</span><span class="p">,</span> <span class="nx">ctx</span><span class="p">){</span>
+            <span class="c1">// toggles item's state</span>
+            <span class="kd">var</span> <span class="nx">state</span> <span class="o">=</span> <span class="nx">ctx</span><span class="p">.</span><span class="nx">id</span><span class="p">.</span><span class="nx">hasClass</span><span class="p">(</span><span class="s1">'isDone'</span><span class="p">);</span>
+            <span class="k">if</span> <span class="p">(</span><span class="nx">state</span><span class="p">)</span> <span class="k">return</span> <span class="nx">ctx</span><span class="p">.</span><span class="nx">id</span><span class="p">.</span><span class="nx">removeClass</span><span class="p">(</span><span class="s1">'isDone'</span><span class="p">);</span>
+            <span class="nx">ctx</span><span class="p">.</span><span class="nx">id</span><span class="p">.</span><span class="nx">addClass</span><span class="p">(</span><span class="s1">'isDone'</span><span class="p">);</span>
+        <span class="p">})</span>
+        <span class="p">.</span><span class="nx">end</span><span class="p">();</span>
+
+</pre>
+</div>
+
+
+<ul>
+<li>fill up collection with some static demo data and render view</li>
+</ul><div class="highlight">
+<pre>
+
+    <span class="kd">var</span> <span class="nx">data</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="p">{</span>
+            <span class="nx">id</span>     <span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
+            <span class="nx">text</span>   <span class="o">:</span> <span class="s1">'Task 1'</span><span class="p">,</span>
+            <span class="nx">isDone</span> <span class="o">:</span> <span class="kc">false</span>
+        <span class="p">},</span>
+        <span class="p">{</span>
+            <span class="nx">id</span>     <span class="o">:</span> <span class="mi">2</span><span class="p">,</span>
+            <span class="nx">text</span>   <span class="o">:</span> <span class="s1">'Task 2'</span><span class="p">,</span>
+            <span class="nx">isDone</span> <span class="o">:</span> <span class="kc">false</span>
+        <span class="p">}</span>
+    <span class="p">];</span>
+
+    <span class="c1">// ---</span>
+
+    <span class="nx">superbone</span><span class="p">.</span><span class="nx">collections</span>
+        <span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="s1">'todoList'</span><span class="p">)</span>
+        <span class="p">.</span><span class="nx">reset</span><span class="p">(</span><span class="nx">data</span><span class="p">);</span>
+
+    <span class="nx">superbone</span><span class="p">.</span><span class="nx">views</span>
+        <span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="s1">'todo'</span><span class="p">)</span>
+        <span class="p">.</span><span class="nx">render</span><span class="p">();</span>
+
+</pre>
+</div>
+
+      </section>
+      <footer>
+        <p>This project is maintained by <a href="https://github.com/ezmilhouse">ezmilhouse</a></p>
+        <p><small>Hosted on GitHub Pages &mdash; Theme by <a href="https://github.com/orderedlist">orderedlist</a></small></p>
+      </footer>
+    </div>
+    <script src="javascripts/scale.fix.js"></script>
+              <script type="text/javascript">
+            var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
+            document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
+          </script>
+          <script type="text/javascript">
+            try {
+              var pageTracker = _gat._getTracker("UA-2025332-10");
+            pageTracker._trackPageview();
+            } catch(err) {}
+          </script>
+
+  </body>
+</html>

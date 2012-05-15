@@ -1,0 +1,8 @@
+<script type="text/template" id="todo">
+h1 Things to Do
+ul
+  each val, key in data.todoList
+    li(id='#{val.id}')
+      input(type='checkbox')
+      span #{val.text} #{val.id}
+</script>

@@ -36,5 +36,15 @@ app.get('/tests', function(req, res) {
 
 });
 
+// ---
+
+app.get('/examples/apps/:name', function(req, res) {
+
+	fs.readFile(public + '/examples/apps/' + req.params.name + '/index.html', 'utf8', function(err, html){
+		res.send(html);
+	});
+
+});
+
 
 

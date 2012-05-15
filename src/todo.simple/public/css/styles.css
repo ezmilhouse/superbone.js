@@ -1,0 +1,8 @@
+#main {
+    width  : 800px;
+    margin : 32px auto;
+}
+
+#todo li.isDone span {
+    text-decoration: line-through;
+}

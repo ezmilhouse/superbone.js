@@ -2052,7 +2052,7 @@ var superbone = function (exports) {
 
 					default : // jade
 
-						flow()
+						superflow
 							.seq(function (cb) {
 
 								/**
@@ -2108,7 +2108,7 @@ var superbone = function (exports) {
 								cb();
 
 							})
-							.exec();
+							.end();
 
 						break;
 

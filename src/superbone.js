@@ -370,6 +370,29 @@ var superbone = function (exports) {
 	// ---
 
 	/**
+	 * @function isModel(mixed)
+	 * @param mixed
+	 * Checks if incoming obj is Backbone `model` or not, returns true
+	 * if so, otherwise false.
+	 */
+	function isModel(mixed) {
+		return (mixed instanceof Backbone.Model)
+			? true
+			: false
+	}
+
+	/**
+	 * @function getModel(name, [debug])
+	 * @param name
+	 * @param debug
+	 * Wrapper of `modelGet`, for consistency reasons.
+	 * TODO: make this obsolet!
+	 */
+	function getModel(name, debug) {
+		return modelGet(name, debug);
+	}
+
+	/**
 	 * @function modelCreate(name)
 	 * @public
 	 * @param name
@@ -393,16 +416,22 @@ var superbone = function (exports) {
 
 		function getIt(name, debug) {
 
+			console.log(name, _models);
+
 			if (name) {
 				if (debug) return _models[name];
-				return _models[name].model;
+				if (_models[name]) {
+					return _models[name].model;
+				}
 			} else {
 				var obj = {};
 				_.each(_models, function (value, key) {
-					if (debug) {
-						obj[key] = _models[key]
-					} else {
-						obj[key] = _models[key].model
+					if (obj[key]) {
+						if (debug) {
+							obj[key] = _models[key]
+						} else {
+							obj[key] = _models[key].model
+						}
 					}
 				});
 				return obj;
@@ -831,7 +860,8 @@ var superbone = function (exports) {
 
 
 
-	var _routers = {};
+	var _routers = {}
+		, _routers_started = false;
 
 	// ---
 
@@ -944,7 +974,6 @@ var superbone = function (exports) {
 		// Therefore you want the `Backbone.Router` to work in /user context but
 		// not ex: in /admin, so in case of /admin/#/login the router of
 		// context /user will not be executed/initiated at all
-
 		var context = this._context
 			, pattern
 			, uri;
@@ -1032,6 +1061,8 @@ var superbone = function (exports) {
 
 								} else {
 
+									console.log(value);
+
 									value.render();
 
 									if (that._events[key] && that._events[key]['init']) {
@@ -1077,9 +1108,17 @@ var superbone = function (exports) {
 
 		// ---
 
-		Backbone.history.start({
-			silent : this._options.silent
-		});
+		console.log(Backbone.history);
+
+		if (!_routers_started) {
+
+			Backbone.history.start({
+				silent : this._options.silent
+			});
+
+			_routers_started = true;
+
+		}
 
 		//---
 
@@ -1370,10 +1409,9 @@ var superbone = function (exports) {
 	 * @param mixed
 	 * Checks if incoming obj is Backbone `collection` or not, returns true
 	 * if so, otherwise false.
-	 * TODO: find a better way to check that?
 	 */
 	function isCollection(mixed) {
-		return (mixed.toJSON)
+		return (mixed instanceof Backbone.Collection)
 			? true
 			: false
 	}
@@ -1413,14 +1451,19 @@ var superbone = function (exports) {
 	function collectionGet(name, debug) {
 		if (name) {
 			if (debug) return _collections[name];
-			return _collections[name].collection;
+			if (_collections[name]) {
+				return _collections[name].collection;
+			}
+			return null;
 		} else {
 			var obj = {};
 			_.each(_collections, function (value, key) {
-				if (debug) {
-					obj[key] = _collections[key]
-				} else {
-					obj[key] = _collections[key].collection
+				if (_collections[key]) {
+					if (debug) {
+						obj[key] = _collections[key]
+					} else {
+						obj[key] = _collections[key].collection
+					}
 				}
 			});
 			return obj;
@@ -1845,6 +1888,7 @@ var superbone = function (exports) {
 		// (json) objects are bound to `change` event.
 		this._data = {};
 		this._collections = {};
+		this._models = {};
 
 		// Save pre-build model data in cache object for later reference.
 		_views[this._name] = this;
@@ -1914,6 +1958,21 @@ var superbone = function (exports) {
 				_.each(that._availableEvents, function (value, key) {
 					_.each(context.collections, function (value1, key1) {
 						context.collections[key1].on(value, function (a, b, c) {
+							if (that._eventsNative[value + ':' + key1]) {
+								that._eventsNative[value + ':' + key1](a, b, c)
+							}
+						}, context);
+					});
+				});
+
+				// Add Backbone `models` to view and bind collection
+				// events to each one of them.
+				this.models = that._models;
+
+				// TODO: different `availableEvents` if working with models?
+				_.each(that._availableEvents, function (value, key) {
+					_.each(context.models, function (value1, key1) {
+						context.models[key1].on(value, function (a, b, c) {
 							if (that._eventsNative[value + ':' + key1]) {
 								that._eventsNative[value + ':' + key1](a, b, c)
 							}
@@ -2033,9 +2092,14 @@ var superbone = function (exports) {
 				// hide all views
 				$('.' + that._config.class).hide();
 
-				// add data from collections and plain data objects to template's
+				console.log(this.data);
+
+				// add data from collections, models and plain data objects to template's
 				// global data object
 				_.each(this.collections, function (value, key) {
+					context.template.data[key] = value.toJSON();
+				});
+				_.each(this.models, function (value, key) {
 					context.template.data[key] = value.toJSON();
 				});
 				_.each(this.data, function (value, key) {
@@ -2218,7 +2282,8 @@ var superbone = function (exports) {
 
 		var that = this
 			, json = this._data
-			, collections = this._collections;
+			, collections = this._collections
+			, models = this._models;
 
 		function add(type, obj, name) {
 			if (type === 'collection') {
@@ -2226,6 +2291,13 @@ var superbone = function (exports) {
 					collections[name] = obj;
 				} else {
 					collections[obj.get('name')] = obj;
+				}
+			} else if (type === 'model') {
+				if (name) {
+					console.log(models);
+					models[name] = obj;
+				} else {
+					models[obj.get('name')] = obj;
 				}
 			} else {
 				if (name) {
@@ -2246,10 +2318,14 @@ var superbone = function (exports) {
 
 			if (isCollection(mixed)) {
 				add('collection', mixed);
+			} else if (isModel(mixed)) {
+				add('model', mixed);
 			} else {
 				_.each(mixed, function (value, key) {
 					if (isCollection(value)) {
 						add('collection', value, key);
+					} else if (isModel(value)) {
+						add('model', value, key);
 					} else {
 						add('json', value, key);
 					}
@@ -2265,6 +2341,8 @@ var superbone = function (exports) {
 				// in this case
 				if (isCollection(value)) {
 					add('collection', value, mixed);
+				} else if (isModel(value)) {
+					add('model', value, mixed);
 				} else {
 					add('json', value, mixed);
 				}
@@ -2272,13 +2350,22 @@ var superbone = function (exports) {
 			} else {
 
 				// No value param, incoming `mixed` might be a name pointing
-				// to a collection instance
-				var collection = getCollection(mixed);
-				if (isCollection(collection)) {
+				// to a collection or model instance
+				var collection
+					, model;
+
+				console.log(mixed);
+
+				collection = getCollection(mixed);
+				model = getModel(mixed);
+
+				if (collection && isCollection(collection)) {
 					add('collection', collection, mixed);
+				} else if(model && isModel(model)) {
+					add('model', model, mixed);
 				} else {
-					log('[error] Collection `' + mixed + '` could not be found. ' +
-						'Please create collection first.');
+					log('[error] Collection/Model `' + mixed + '` could not be found. ' +
+						'Please create collection/model first.');
 				}
 
 			}

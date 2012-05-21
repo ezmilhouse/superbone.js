@@ -490,6 +490,10 @@ var superbone = function (exports) {
 		// notation.
 		this._id = '_id';
 
+		// Url that later becomes Backbone's `rootUrl` attribute. Url to fallback
+		// to (while syncing) if model is not part of a collection.
+		this._url = null;
+
 		// List of native `Backbone` model events, taken in consideration if
 		// user tries to register functions via `.on()` or `.event()`, function
 		// registered for events that don'texist are ignored
@@ -545,6 +549,10 @@ var superbone = function (exports) {
 
 				}
 
+				// Set rootUrl to fallback to if model is not part of a
+				// collection, can be set via `.at()` shortcut.
+				this.rootUrl = that._url;
+
 				// Set ID mapping for syncing with via REST
 				this.attributeId = that._id;
 
@@ -599,9 +607,11 @@ var superbone = function (exports) {
 				mapAttributes();
 
 			},
+
 			defaults   : function () {
 				return that._defaults;
 			}
+
 		});
 
 		// save internal representation for internal reference
@@ -639,6 +649,11 @@ var superbone = function (exports) {
 	 */
 	Model.prototype.id = function (attributeName) {
 		this._id = attributeName;
+		return this;
+	};
+
+	Model.prototype.at = function (url) {
+		this._url = url;
 		return this;
 	};
 
@@ -1534,6 +1549,9 @@ var superbone = function (exports) {
 			// use instance of model!
 			model : that._model,
 
+			// sync url
+			url : that._url || '/' + that._name,
+
 			/**
 			 * intitialize()
 			 * Overwrites Backbone's native `initialize` function. Is called
@@ -1593,6 +1611,18 @@ var superbone = function (exports) {
 		// return fresh instance
 		return _collections[this._name].collection;
 
+	};
+
+	/**
+	 * @method .on(url)
+	 * @prototype
+	 * @param url
+	 * Adds url to collection's list of attributes, will be the starting point for
+	 * all syncs.
+	 */
+	Collection.prototype.at = function (url) {
+		this._url = url;
+		return this;
 	};
 
 	/**

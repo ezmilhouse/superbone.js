@@ -416,8 +416,6 @@ var superbone = function (exports) {
 
 		function getIt(name, debug) {
 
-			console.log(name, _models);
-
 			if (name) {
 				if (debug) return _models[name];
 				if (_models[name]) {
@@ -532,6 +530,70 @@ var superbone = function (exports) {
 
 		var Model = Backbone.Model.extend({
 
+			// Set rootUrl to fallback to if model is not part of a
+			// collection, can be set via `.at()` shortcut.
+			rootUrl : that._url,
+			url     : that._url,
+
+			// Set ID mapping for syncing with via REST
+			idAttribute : that._id || 'id',
+
+			// Overrides backbones native sync method, 'cause it didn't
+			// work out with idAttribute set (ex: to `_id`)
+			sync : function(method, model, options) {
+
+				var url = that._url;
+				if (model.collection && model.collection.url) {
+					url = model.collection.url;
+				}
+
+				// Hier geht's weiter ...
+
+				switch(method) {
+					case 'create' :
+							superagent.post(url, model.toJSON(), function(res) {
+								if (res.ok) {
+									model.set(res.body);
+									options.success(model, res.body);
+								} else {
+									options.error(res.error);
+								}
+							});
+						break;
+					case 'retrieve' :
+						superagent.get(url + '/' + model.id, function(res) {
+							if (res.ok) {
+								model.set(res.body);
+								options.success(model, res.body);
+							} else {
+								options.error(res.error);
+							}
+						});
+						break;
+					case 'update' :
+						superagent.put(url + '/' + model.id, model.toJSON(), function(res) {
+							if (res.ok) {
+								model.set(res.body);
+								options.success(model, res.body);
+							} else {
+								options.error(res.error);
+							}
+						});
+						break;
+					case 'delete' :
+						superagent.del(url + '/' + model.id, function(res) {
+							if (res.ok) {
+								model.set(res.body);
+								options.success(model, res.body);
+							} else {
+								options.error(res.error);
+							}
+						});
+						break;
+				}
+
+			},
+
 			initialize : function () {
 
 				// Context (`this`) of Backbone class object
@@ -548,13 +610,6 @@ var superbone = function (exports) {
 					});
 
 				}
-
-				// Set rootUrl to fallback to if model is not part of a
-				// collection, can be set via `.at()` shortcut.
-				this.rootUrl = that._url;
-
-				// Set ID mapping for syncing with via REST
-				this.attributeId = that._id;
 
 				// Make sure that after all events, values of attributes
 				// that have functions as values, compute their actual values
@@ -574,30 +629,7 @@ var superbone = function (exports) {
 					// b: changes
 					// if event is `all` first param is internal event name
 					context.on(key, function (a, b, c) {
-
-						// Map map over attributes that may compute there values
-						// from function results.
-						if (key === 'all') mapAttributes();
-
-						// For consistency reasons, add err obj as first param.
-						var err = null;
-
-						// Make events more consistent, always return 3 params:
-						// 1. evt name (ex: reset, chnage:attribute)
-						var evt = key;
-
-						// 2. context object holding instances of objects event
-						// is nested in: model, collection, view
-						var ctx = {
-							model : (_.isEmpty(a)) ? null : a
-						};
-
-						// 3. Backbone's delta obj, representing changes or
-						// states
-						var res = c || {};
-
-						value.call(context, err, evt, ctx, res);
-
+						value.apply(context, arguments);
 					}, context);
 
 				});
@@ -1076,8 +1108,6 @@ var superbone = function (exports) {
 
 								} else {
 
-									console.log(value);
-
 									value.render();
 
 									if (that._events[key] && that._events[key]['init']) {
@@ -1122,8 +1152,6 @@ var superbone = function (exports) {
 		});
 
 		// ---
-
-		console.log(Backbone.history);
 
 		if (!_routers_started) {
 
@@ -1500,6 +1528,9 @@ var superbone = function (exports) {
 		// Todo: need getByName?
 		this._name = name;
 
+		// Url Backbone uses to sync via REST, to be set via `.at()` shortcut.
+		this._url = '/' + name;
+
 		// Internal collection binding to model class. All objects hold by
 		// collection must be instances of this model class.
 		this._model = {};
@@ -1574,24 +1605,7 @@ var superbone = function (exports) {
 					// b: changes
 					// if event is `all` first param is internal event name
 					context.on(key, function (a, b, c) {
-
-						// Make events more consistent, always return 3 params:
-						// 1. evt name (ex: reset, chnage:attribute)
-						var evt = key;
-
-						// 2. context object holding instances of objects event
-						// is nested in: model, collection, view
-						var ctx = {
-							collection : (_.isEmpty(a)) ? null : a,
-							model      : (_.isEmpty(b)) ? null : b
-						};
-
-						// 3. Backbone's delta obj, representing changes or
-						// states
-						var res = c || {};
-
-						value.apply(context, evt, ctx, res);
-
+						value.apply(context, arguments);
 					}, context);
 
 				});
@@ -2122,8 +2136,6 @@ var superbone = function (exports) {
 				// hide all views
 				$('.' + that._config.class).hide();
 
-				console.log(this.data);
-
 				// add data from collections, models and plain data objects to template's
 				// global data object
 				_.each(this.collections, function (value, key) {
@@ -2324,7 +2336,6 @@ var superbone = function (exports) {
 				}
 			} else if (type === 'model') {
 				if (name) {
-					console.log(models);
 					models[name] = obj;
 				} else {
 					models[obj.get('name')] = obj;
@@ -2384,8 +2395,6 @@ var superbone = function (exports) {
 				var collection
 					, model;
 
-				console.log(mixed);
-
 				collection = getCollection(mixed);
 				model = getModel(mixed);
 
@@ -2424,7 +2433,7 @@ var superbone = function (exports) {
 			// incoming array
 			_.each(mixed, function (value, key) {
 				_.each(value, function (value1, key) {
-					that.event(key, value1);
+					that.on(key, value1);
 				})
 			});
 
@@ -2432,7 +2441,7 @@ var superbone = function (exports) {
 
 			// incoming object
 			_.each(mixed, function (value, key) {
-				that.event(key, value);
+				that.on(key, value);
 			});
 
 		} else {

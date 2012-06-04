@@ -376,9 +376,7 @@ var superbone = function (exports) {
 	 * if so, otherwise false.
 	 */
 	function isModel(mixed) {
-		return (mixed instanceof Backbone.Model)
-			? true
-			: false
+		return !!((mixed instanceof Backbone.Model));
 	}
 
 	/**
@@ -1101,35 +1099,49 @@ var superbone = function (exports) {
 
 								route : that
 
-							}, function (err) {
+							}, {}, function (err, next) { // empty `data` argument for consistency reasons
+
 								if (err) {
 
 									noop();
 
 								} else {
 
-									value.render();
+									// if 2nd argument is function, native `this.render`
+									// method is ignored.
+									if (next && isFunction(next)) {
 
-									if (that._events[key] && that._events[key]['init']) {
-										that._events[key]['init'](null, 'init', {
-											route : that
-										});
+										next();
+
+									} else {
+
+										value.render();
+
+										if (that._events[key] && that._events[key]['init']) {
+											that._events[key]['init'](null, 'init', {
+												route : that
+											});
+										}
+
 									}
 
 								}
+
 							})
 
 						} else {
 
 							// Callback of a route event is always a `.render()`
 							// method of a view instance.
-							value.render();
+							value.render(function() {
 
-							if (that._events[key] && that._events[key]['init']) {
-								that._events[key]['init'](null, 'init', {
-									route : that
-								});
-							}
+								if (that._events[key] && that._events[key]['init']) {
+									that._events[key]['init'](null, 'init', {
+										route : that
+									});
+								}
+
+							});
 
 						}
 
@@ -1454,9 +1466,7 @@ var superbone = function (exports) {
 	 * if so, otherwise false.
 	 */
 	function isCollection(mixed) {
-		return (mixed instanceof Backbone.Collection)
-			? true
-			: false
+		return !!((mixed instanceof Backbone.Collection));
 	}
 
 	/**
@@ -1873,10 +1883,11 @@ var superbone = function (exports) {
 		// methods `.as()`, `.in()` and `.is()`.
 		this._config = {
 
-			class     : 'view', // hide/show class, used to toggle views
-			container : '#main', // views' container
-			engine    : 'jade', // rendering engine
-			ext       : '.jade', // template file extension
+			box       : '#' + this._name,
+			class     : 'view',     // hide/show class, used to toggle views
+			container : '#main',    // views' container
+			engine    : 'jade',     // rendering engine
+			ext       : '.jade',    // template file extension
 			folder    : '/views'    // views folder
 
 		};
@@ -1922,8 +1933,13 @@ var superbone = function (exports) {
 		// selection.
 		this._tpl = {
 
-			file : name, // defaults to view name
-			id   : name  // defaults to view name
+			box    : this._config.box,
+			class  : this._config.class,
+			file   : name, // defaults to view name
+			folder : this._config.folder,
+			engine : this._config.engine,
+			ext    : this._config.ext,
+			id     : name  // defaults to view name, must be === id="..." of script tag in template
 
 		};
 
@@ -1957,35 +1973,23 @@ var superbone = function (exports) {
 
 		var that = this;
 
-		// Check if `container` is already in the DOM, if not
-		// create it.
-		if ($(this._config.container).length === 0) {
+		// Overwrite default configs if set
+		_.extend(this._config, {
 
-			$(document
-				.createElement('div'))
-				.attr('id', that._config.container.substr(1))
-				.appendTo('body');
+				box    : this._tpl.box,
+			class  : this._tpl.class,
+			folder : this._tpl.folder,
+			id     : this._tpl.id,
+		    engine : this._tpl.engine,
+			ext    : this._tpl.ext
 
-		}
-
-		// Check if `box` is already in the DOM, if not create
-		// it within main container.
-		if ($(this._config.box, $(that._config.container)).length === 0) {
-
-			$(document
-				.createElement('div'))
-				.attr('id', that._tpl.id)
-				.attr('class', that._config.class)
-				.appendTo(that._config.container);
-
-		}
+		});
 
 		var View = Backbone.View.extend({
 
 			// View's root element. Required by `Backbone` to set scope and
-			// bind events to it. Must be part of the DOM(!) before
-			// `.initialize()` is called. Comes as jQuery object.
-			el : $('#' + that._tpl.id),
+			// bind events to it.
+			el : 'body',//'#' + that._tpl.id,
 
 			/**
 			 * intitialize()
@@ -2024,67 +2028,73 @@ var superbone = function (exports) {
 					});
 				});
 
+				// Format `_events` obj for later delegation
+				if (!_.isEmpty(that._events)) {
+
+					_.each(that._events, function (value, key) {
+
+						that._events[key] = function (evt) {
+
+							var model
+								, ctx = {}
+								, collection
+								, err = null
+								, id
+								, el;
+
+							// Prevent native browser event from firing.
+							evt.preventDefault();
+
+							// Get jQuery obj of the element that triggered the
+							// DOM event.
+							el = $(evt.currentTarget);
+
+							// Get id of jQuery obj that triggered event, if it has
+							// no id walk up the DOM via `.closest()` to get the
+							// first parent one that has `id` attribute. If nothing
+							// found fallback to `false`.
+							id = (typeof el.attr('id') !== 'undefined' && el.attr('id') !== false)
+								? el.attr('id')
+								: el.closest('[id]').attr('id') || null;
+							id = $('#' + id);
+
+
+							// Get collection obj of collection that is bound to the
+							// view the event was triggered from. If no collection
+							// bound to the view, fallback to `false`.
+							if (!_.isEmpty(context.collection)) {
+								collection = context.collection || null;
+							}
+
+							// If collection is bound to the view the event was
+							// triggered from, try to find model object that might
+							// be involved in this event by using DOM `id`.
+							if (!_.isEmpty(context.collection)) {
+								model = context.collection.get(id) || null;
+							}
+
+							// Merge all context objects into one callback param
+							ctx = {
+								el         : el,
+								id         : id,
+								model      : model,
+								collection : collection
+							};
+
+							value(err, evt, ctx);
+
+						}
+
+					});
+
+				}
+
 				// Add plain data objects to view and bind data events to each
 				// one of them.
 				this.data = that._data;
 
 				// DOM events obj
 				this.events = {};
-				_.each(that._events, function (value, key) {
-					context.events[key] = function (evt) {
-
-						// TODO: move to .event() method
-
-						var model
-							, ctx = {}
-							, collection
-							, err = null
-							, id
-							, el;
-
-						// Prevent native browser event from firing.
-						evt.preventDefault();
-
-						// Get jQuery obj of the element that triggered the
-						// DOM event.
-						el = $(evt.currentTarget);
-
-						// Get id of jQuery obj that triggered event, if it has
-						// no id walk up the DOM via `.closest()` to get the
-						// first parent one that has `id` attribute. If nothing
-						// found fallback to `false`.
-						id = (typeof el.attr('id') !== 'undefined' && el.attr('id') !== false)
-							? el.attr('id')
-							: el.closest('[id]').attr('id') || null;
-						id = $('#' + id);
-
-
-						// Get collection obj of collection that is bound to the
-						// view the event was triggered from. If no collection
-						// bound to the view, fallback to `false`.
-						if (!_.isEmpty(context.collection)) {
-							collection = context.collection || null;
-						}
-
-						// If collection is bound to the view the event was
-						// triggered from, try to find model object that might
-						// be involved in this event by using DOM `id`.
-						if (!_.isEmpty(context.collection)) {
-							model = context.collection.get(id) || null;
-						}
-
-						// Merge all context objects into one callback param
-						ctx = {
-							el         : el,
-							id         : id,
-							model      : model,
-							collection : collection
-						};
-
-						value(err, evt, ctx);
-
-					}
-				});
 
 				// Holds rendering configuration, depends on used engine, file
 				// types, etc.
@@ -2110,7 +2120,7 @@ var superbone = function (exports) {
 
 					// Specify where to inject rendered template. Comes as jQuery
 					// object.
-					target   : $('#' + that._tpl.id, $(that._in))
+					target   : this.config.box
 
 				};
 
@@ -2129,12 +2139,45 @@ var superbone = function (exports) {
 			 * into DOM using jQuery's `.html()` on target specified in
 			 * `template_target`.
 			 */
-			render : function () {
+			render : function (callback) {
 
 				var context = this;
 
+				/**
+				 *
+				 *  container
+				 *      box
+				 *          template
+				 *
+				 *
+				 */
+
 				// hide all views
+				// TODO: concept hide() not good
 				$('.' + that._config.class).hide();
+
+				// Check if `container` is already in the DOM, if not
+				// create it. Defaults to `div#main`
+				if ($(context.config.container).length === 0) {
+
+					$(document
+						.createElement('div'))
+						.attr('id', context.config.container.substr(1))
+						.appendTo('body');
+
+				}
+
+				// Check if `box` is already in the DOM, if not create
+				// it within main container. Defaults to `div#name`
+				if ($(context.config.box).length === 0) {
+
+					$(document
+						.createElement('div'))
+						.attr('id', context.config.id)
+						.attr('class', context.config.class)
+						.appendTo(context.config.container);
+
+				}
 
 				// add data from collections, models and plain data objects to template's
 				// global data object
@@ -2206,19 +2249,27 @@ var superbone = function (exports) {
 									data : context.template.data
 								});
 
-								// inject & show
-								context.template.target
-									.html(context.template.rendered)
-									.show();
-
 								cb();
 
 							})
-							.end();
+							.end(function() {
+
+								// inject & show
+								$(context.template.target)
+									.html(context.template.rendered)
+									.show();
+
+								context.delegateEvents(that._events);
+
+								if (callback) callback(null, $(context.template.target));
+
+							});
 
 						break;
 
 				}
+
+				return this;
 
 			}
 
@@ -2481,6 +2532,7 @@ var superbone = function (exports) {
 					// by colon to find controller. Fallback to noop function if no
 					// controller could be found.
 					var arr = callback.split(':');
+
 					if (arr.length === 2) {
 						this._events[mixed] = _controllers[arr[0]].controller[arr[1]];
 					} else {

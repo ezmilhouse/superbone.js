@@ -545,20 +545,23 @@ var superbone = function (exports) {
 					url = model.collection.url;
 				}
 
-				// Hier geht's weiter ...
-
 				switch(method) {
+
 					case 'create' :
-							superagent.post(url, model.toJSON(), function(res) {
-								if (res.ok) {
-									model.set(res.body);
-									options.success(model, res.body);
-								} else {
-									options.error(res.error);
-								}
-							});
+
+						superagent.post(url, model.toJSON(), function(res) {
+							if (res.ok) {
+								model.set(res.body);
+								options.success(model, res.body);
+							} else {
+								options.error(res.error);
+							}
+						});
+
 						break;
+
 					case 'retrieve' :
+
 						superagent.get(url + '/' + model.id, function(res) {
 							if (res.ok) {
 								model.set(res.body);
@@ -567,8 +570,11 @@ var superbone = function (exports) {
 								options.error(res.error);
 							}
 						});
+
 						break;
+
 					case 'update' :
+
 						superagent.put(url + '/' + model.id, model.toJSON(), function(res) {
 							if (res.ok) {
 								model.set(res.body);
@@ -577,8 +583,11 @@ var superbone = function (exports) {
 								options.error(res.error);
 							}
 						});
+
 						break;
+
 					case 'delete' :
+
 						superagent.del(url + '/' + model.id, function(res) {
 							if (res.ok) {
 								model.set(res.body);
@@ -587,7 +596,9 @@ var superbone = function (exports) {
 								options.error(res.error);
 							}
 						});
+
 						break;
+
 				}
 
 			},
